@@ -1,0 +1,180 @@
+import React, { useState, useEffect, useRef } from "react";
+import "./Chatbot.css";
+import { scenes } from "./scenes";
+
+// Map des titres pour affichage
+const SCENE_TITLES = Object.fromEntries(
+  Object.entries(scenes).map(([id, def]) => [id, def.title])
+);
+
+export default function Chatbot({ onClose }) {
+  const chatEndRef = useRef();
+
+  // --- Messages initiaux au rafraîchissement de la page
+  const initialMessages = [
+    {
+      sender: "bot",
+      text: "👋 Bienvenue dans la visite guidée intelligente ! Essayez 'Où suis-je ?' ou 'Va à la bibliothèque'."
+    }
+  ];
+
+  // --- Etat messages
+  const [messages, setMessages] = useState(initialMessages);
+  const [inputText, setInputText] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [currentSceneId, setCurrentSceneId] = useState("entree_ecole");
+
+  // --- Historique temporaire pendant session (fermeture du chat avec '-' ne reset pas)
+  const [sessionMessages, setSessionMessages] = useState([]);
+
+  // --- Scroll automatique vers le dernier message
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, suggestions]);
+
+  // --- Map des scènes pour navigation
+  const mapGraph = {};
+  Object.entries(scenes).forEach(([sid, sdef]) => {
+    mapGraph[sid] = (sdef.hotSpots || [])
+      .filter((h) => h.type === "scene")
+      .map((h) => ({ to: h.sceneId, text: h.text, yaw: h.yaw }));
+  });
+
+  function appendMessage(sender, text) {
+    setMessages(prev => [...prev, { sender, text }]);
+    setSessionMessages(prev => [...prev, { sender, text }]);
+  }
+
+  // --- AutoGuidance optionnel
+  function autoGuidance() {
+    if (!window.viewer) return;
+
+    const sceneId = window.viewer.getScene();
+    const yaw = window.viewer.getYaw();
+    const places = mapGraph[sceneId] || [];
+    if (!places.length) return;
+
+    places.forEach((p) => {
+      let delta = ((p.yaw - yaw + 540) % 360) - 180;
+      let dir = "";
+      if (delta >= -45 && delta <= 45) dir = "devant toi";
+      else if (delta > 45 && delta <= 135) dir = "à ta droite";
+      else if (delta < -45 && delta >= -135) dir = "à ta gauche";
+      else dir = "derrière toi";
+
+      appendMessage("bot", `📍 ${p.text} est ${dir}`);
+    });
+  }
+
+  // --- Initialisation Pannellum
+  useEffect(() => {
+    const checkViewer = setInterval(() => {
+      if (window.viewer) {
+        setCurrentSceneId(window.viewer.getScene());
+
+        window.viewer.on("scenechange", (sid) => {
+          setCurrentSceneId(sid);
+          appendMessage("bot", `✨ Vous êtes maintenant dans : **${SCENE_TITLES[sid] || 'Nouvelle Scène'}**`);
+        });
+        clearInterval(checkViewer);
+      }
+    }, 100);
+    return () => clearInterval(checkViewer);
+  }, []);
+
+  // --- Envoyer message au backend
+  const handleSend = async () => {
+    const text = inputText.trim();
+    if (!text) return;
+
+    appendMessage("user", text);
+    setInputText("");
+
+    try {
+      const res = await fetch("http://localhost:5000/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, currentSceneId })
+      });
+
+      if (!res.ok) {
+        appendMessage("bot", `❌ Erreur du serveur (${res.status})`);
+        return;
+      }
+
+      const data = await res.json();
+
+      if (data.command && data.command.type === 'loadScene' && window.viewer) {
+        window.viewer.loadScene(data.command.sceneId);
+      }
+
+      appendMessage("bot", data.reply || "Désolé, je n'ai pas compris.");
+    } catch (err) {
+      appendMessage("bot", "❌ Erreur de connexion au serveur.");
+      console.error(err);
+    }
+  };
+
+  // --- Cliquer sur une suggestion
+  const handleSuggestionClick = (sceneId, title) => {
+    appendMessage("user", title);
+    appendMessage("bot", `🚀 Direction vers : ${title}`);
+    setSuggestions([]);
+    if (window.viewer) window.viewer.loadScene(sceneId);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") handleSend();
+  };
+
+  // --- Fermer le chat (historique conservé)
+  const handleClose = () => {
+    onClose();
+  };
+
+  return (
+    <div className="chatbot chatbot-animate">
+      <div className="chatbot-header">
+        🤖 Chat d’Assistance
+        <button className="chatbot-min-btn" onClick={handleClose}>-</button>
+      </div>
+
+      <div className="chatbot-body">
+        {messages.map((msg, i) => (
+          <div key={i} className={`message ${msg.sender}`}>
+            <div
+              dangerouslySetInnerHTML={{
+                __html: (msg.text || '')
+                  .replace(/\n/g, '<br/>')
+                  .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+              }}
+            />
+          </div>
+        ))}
+
+        {suggestions.length > 0 && (
+          <div className="suggestions">
+            {suggestions.map(([sceneId, sdef], i) => (
+              <button key={i} className="suggestion-btn" onClick={() => handleSuggestionClick(sceneId, sdef.title)}>
+                {sdef.title}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div ref={chatEndRef} />
+      </div>
+
+      <div className="chatbot-input">
+        <input
+          type="text"
+          placeholder="Écrivez le nom du département..."
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          onKeyPress={handleKeyPress}
+        />
+        <button onClick={handleSend}>Envoyer</button>
+      </div>
+    </div>
+  );
+}

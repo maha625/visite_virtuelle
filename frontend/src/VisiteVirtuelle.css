@@ -1,0 +1,67 @@
+#panorama {
+  width: 100%;
+  height: 90vh;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  z-index: 0;
+  background-color: #000;
+}
+
+.pnlm-container {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.pnlm-hotspot-base {
+  cursor: pointer !important;
+  z-index: 9999 !important;
+}
+
+/* Hotspot type scène avec flèche fixe */
+.pnlm-hotspot-base .pnlm-scene-hotspot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: rgba(255,255,255,0.8);
+  border: 2px solid #000;
+  text-align: center;
+  line-height: 26px;
+  font-size: 18px;
+  position: relative;
+  transform: rotate(0deg) !important; /* empêche rotation avec panorama */
+}
+
+.pnlm-scene-hotspot::after {
+  content: '→';  /* ta flèche */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(0deg); /* reste fixe */
+  font-size: 18px;
+  color: #000;
+}
+
+.pnlm-hotspot-base .pnlm-info-hotspot {
+  width: 25px;
+  height: 25px;
+  line-height: 25px;
+  font-size: 16px;
+  border-radius: 50%;
+  background-color: rgba(0,123,255,0.8);
+  color: #fff;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.pnlm-hotspot-base .pnlm-info-hotspot:hover {
+  background-color: rgba(0,123,255,1);
+}
+.pnlm-scene-title,
+.pnlm-scene-controls,
+.pnlm-scene-list,
+.pnlm-scene-title, /* redondant mais sûr */
+.pnlm-description {
+  display: none !important;
+}

@@ -1,0 +1,90 @@
+/* ----- Container principal ----- */
+.dashboard-container {
+  display: flex;
+  min-height: 100vh; /* plutôt que height: 100vh */
+  font-family: Arial, sans-serif;
+  background-color: #f4f7f6;
+  gap: 20px; /* espace entre le contenu principal et la sidebar */
+}
+
+/* ----- Contenu principal ----- */
+.main-content {
+  flex: 1; /* prend tout l'espace disponible si le chatbot est fermé */
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  /* Le scroll se fait sur le body, pas ici */
+  overflow: visible;
+}
+
+/* ----- Sections internes ----- */
+.section {
+  margin-bottom: 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  min-height: 400px; /* ajuster selon besoin */
+  border: 1px solid #ccc;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+/* ----- Sidebar / Chatbot ----- */
+.sidebar {
+  width: 380px; /* largeur du chatbot + 10px */
+  flex-shrink: 0; /* ne pas rétrécir */
+  background-color: #ffffff;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  position: relative; /* garde les scroll internes possibles si besoin */
+}
+
+/* ----- Bouton bascule / masquer ----- */
+.toggle-button {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s;
+}
+
+.toggle-button:hover {
+  background-color: #0056b3;
+}
+
+/* ----- Bouton pour réafficher le chatbot ----- */
+.chatbot-show-btn {
+  position: fixed; /* toujours au-dessus de tout le contenu */
+  bottom: 20px;
+  right: 20px;
+  padding: 8px 12px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  border-radius: 16px;
+  background-color: #0078d7;
+  color: white;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  transition: 0.3s;
+  z-index: 20000; /* bien au-dessus de tout */
+}
+
+.chatbot-show-btn:hover {
+  background-color: #005fa3;
+}
+
+/* ----- Body pour scroll global ----- */
+body {
+  margin: 0;
+  padding: 0;
+  overflow-y: auto; /* le scroll se fait sur toute la page */
+}

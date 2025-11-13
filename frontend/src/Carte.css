@@ -1,0 +1,30 @@
+.carte-container {
+  width: 100%;
+  height: 900px; /* ✅ fixe une hauteur visible (tu peux ajuster) */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  background-color: #f9f9f9; /* optionnel, juste pour voir les limites */
+  border: 1px solid #ccc; /* optionnel */
+}
+
+.carte-svg {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.carte-svg [data-departement] {
+  cursor: pointer;
+  pointer-events: all; /* permet de cliquer sur <g> ou <path> */
+}
+
+
+.carte-svg path:hover {
+
+  cursor: pointer;
+}
