@@ -1,35 +1,47 @@
+// src/Chatbot.js
 import React, { useState, useEffect, useRef } from "react";
 import "./Chatbot.css";
-import { scenes } from "./scenes";
-
-const SCENE_TITLES = Object.fromEntries(
-  Object.entries(scenes).map(([id, def]) => [id, def.title])
-);
 
 export default function Chatbot({ onClose }) {
-  const [messages, setMessages] = useState([{ sender: "bot", text: "👋 Bienvenue dans la visite guidée !" }]);
+  const [messages, setMessages] = useState([
+    { sender: "bot", text: "👋 Bienvenue dans la visite guidée !" }
+  ]);
   const [inputText, setInputText] = useState("");
-  const [currentSceneId, setCurrentSceneId] = useState("entree_ecole");
+  const [currentSceneId, setCurrentSceneId] = useState(null);
+  const [scenesMap, setScenesMap] = useState({});
   const chatEndRef = useRef();
 
+  // Scroll automatique
   useEffect(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), [messages]);
 
-  const appendMessage = (sender, text) => setMessages(prev => [...prev, { sender, text }]);
+  // Charger les scènes depuis le backend
+  useEffect(() => {
+    fetch("http://localhost:5000/scenes")
+      .then(res => res.json())
+      .then(data => setScenesMap(data))
+      .catch(err => console.error("Erreur chargement scènes:", err));
+  }, []);
 
+  // Initialiser la scène actuelle et écouter les changements
   useEffect(() => {
     const checkViewer = setInterval(() => {
       if (window.viewer) {
         setCurrentSceneId(window.viewer.getScene());
         window.viewer.on("scenechange", sid => {
           setCurrentSceneId(sid);
-          appendMessage("bot", `✨ Vous êtes maintenant dans : **${SCENE_TITLES[sid] || 'Nouvelle Scène'}**`);
+          const title = scenesMap[sid]?.title || "Nouvelle Scène";
+          appendMessage("bot", `✨ Vous êtes maintenant dans : **${title}**`);
         });
         clearInterval(checkViewer);
       }
     }, 100);
     return () => clearInterval(checkViewer);
-  }, []);
+  }, [scenesMap]);
 
+  const appendMessage = (sender, text) =>
+    setMessages(prev => [...prev, { sender, text }]);
+
+  // Envoi message au backend
   const handleSend = async () => {
     const text = inputText.trim();
     if (!text) return appendMessage("bot", "⚠️ Veuillez écrire un message.");
@@ -46,9 +58,11 @@ export default function Chatbot({ onClose }) {
       if (!res.ok) return appendMessage("bot", `❌ Erreur serveur (${res.status})`);
       const data = await res.json();
 
-      if (data.command?.type === 'loadScene' && window.viewer) window.viewer.loadScene(data.command.sceneId);
+      // Si le backend demande de changer de scène
+      if (data.command?.type === "loadScene" && window.viewer) {
+        window.viewer.loadScene(data.command.sceneId);
+      }
       appendMessage("bot", data.reply || "Désolé, je n'ai pas compris.");
-
     } catch (err) {
       appendMessage("bot", "❌ Erreur de connexion au serveur.");
       console.error(err);
@@ -66,7 +80,13 @@ export default function Chatbot({ onClose }) {
       <div className="chatbot-body">
         {messages.map((msg, i) => (
           <div key={i} className={`message ${msg.sender}`}>
-            <div dangerouslySetInnerHTML={{ __html: (msg.text || '').replace(/\n/g,'<br/>').replace(/\*\*(.*?)\*\*/g,'<b>$1</b>') }} />
+            <div
+              dangerouslySetInnerHTML={{
+                __html: (msg.text || '')
+                  .replace(/\n/g,'<br/>')
+                  .replace(/\*\*(.*?)\*\*/g,'<b>$1</b>')
+              }}
+            />
           </div>
         ))}
         <div ref={chatEndRef} />
