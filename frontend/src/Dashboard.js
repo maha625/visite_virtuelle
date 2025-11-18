@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import VisiteVirtuelle from "./VisiteVirtuelle";
 import Carte from "./Carte";
 import Chatbot from "./Chatbot";
@@ -8,6 +8,11 @@ import "./Dashboard.css";
 export default function Dashboard() {
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [currentScene, setCurrentScene] = useState("entree_ecole");
+  const [chatMessages, setChatMessages] = useState([
+    { sender: "bot", text: "👋 Bienvenue dans la visite guidée !" }
+  ]);
+
+  const lastSceneRef = useRef(currentScene);
 
   const handleDepartementClick = (sceneId) => setCurrentScene(sceneId);
   const handleChatClick = () => setIsChatVisible(true);
@@ -31,7 +36,13 @@ export default function Dashboard() {
 
         {isChatVisible && (
           <div className="sidebar">
-            <Chatbot onClose={() => setIsChatVisible(false)} />
+            <Chatbot
+              onClose={() => setIsChatVisible(false)}
+              messages={chatMessages}
+              setMessages={setChatMessages}
+              currentSceneId={currentScene}
+              lastSceneRef={lastSceneRef}
+            />
           </div>
         )}
       </div>

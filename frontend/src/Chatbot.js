@@ -9,6 +9,7 @@ export default function Chatbot({ onClose }) {
   const [inputText, setInputText] = useState("");
   const [currentSceneId, setCurrentSceneId] = useState(null);
   const [scenesMap, setScenesMap] = useState({});
+  const lastSceneRef = useRef(null); // Dernière scène pour éviter doublons
   const chatEndRef = useRef();
 
   // Scroll automatique
@@ -26,15 +27,30 @@ export default function Chatbot({ onClose }) {
   useEffect(() => {
     const checkViewer = setInterval(() => {
       if (window.viewer) {
-        setCurrentSceneId(window.viewer.getScene());
-        window.viewer.on("scenechange", sid => {
-          setCurrentSceneId(sid);
-          const title = scenesMap[sid]?.title || "Nouvelle Scène";
+        const sid = window.viewer.getScene();
+        setCurrentSceneId(sid);
+
+        // Ajouter message uniquement si nouvelle scène
+        if (lastSceneRef.current !== sid) {
+          const title = scenesMap[sid]?.title || sid || "Nouvelle Scène";
           appendMessage("bot", `✨ Vous êtes maintenant dans : **${title}**`);
+          lastSceneRef.current = sid;
+        }
+
+        // Écouter changement de scène
+        window.viewer.on("scenechange", newSid => {
+          setCurrentSceneId(newSid);
+          if (lastSceneRef.current !== newSid) {
+            const title = scenesMap[newSid]?.title || newSid || "Nouvelle Scène";
+            appendMessage("bot", `✨ Vous êtes maintenant dans : **${title}**`);
+            lastSceneRef.current = newSid;
+          }
         });
+
         clearInterval(checkViewer);
       }
     }, 100);
+
     return () => clearInterval(checkViewer);
   }, [scenesMap]);
 
@@ -56,13 +72,15 @@ export default function Chatbot({ onClose }) {
       });
 
       if (!res.ok) return appendMessage("bot", `❌ Erreur serveur (${res.status})`);
+
       const data = await res.json();
 
+      if (data.reply) appendMessage("bot", data.reply);
+
       // Si le backend demande de changer de scène
-      if (data.command?.type === "loadScene" && window.viewer) {
+      if (data.command?.type === "loadScene" && data.command.sceneId && window.viewer) {
         window.viewer.loadScene(data.command.sceneId);
       }
-      appendMessage("bot", data.reply || "Désolé, je n'ai pas compris.");
     } catch (err) {
       appendMessage("bot", "❌ Erreur de connexion au serveur.");
       console.error(err);
@@ -77,20 +95,20 @@ export default function Chatbot({ onClose }) {
         🤖 Chat d’Assistance
         <button className="chatbot-min-btn" onClick={onClose}>-</button>
       </div>
+
       <div className="chatbot-body">
         {messages.map((msg, i) => (
           <div key={i} className={`message ${msg.sender}`}>
             <div
               dangerouslySetInnerHTML={{
-                __html: (msg.text || '')
-                  .replace(/\n/g,'<br/>')
-                  .replace(/\*\*(.*?)\*\*/g,'<b>$1</b>')
+                __html: (msg.text || '').replace(/\n/g,'<br/>').replace(/\*\*(.*?)\*\*/g,'<b>$1</b>')
               }}
             />
           </div>
         ))}
         <div ref={chatEndRef} />
       </div>
+
       <div className="chatbot-input">
         <input
           type="text"

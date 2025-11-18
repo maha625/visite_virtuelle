@@ -4,20 +4,13 @@ import "pannellum/build/pannellum.css";
 export default function VisiteVirtuelle({ currentScene }) {
   const [scenes, setScenes] = useState(null);
 
+  // Charger les scènes depuis l'API
   useEffect(() => {
-    // Charger les scènes depuis l'API
     fetch("http://localhost:5000/scenes")
       .then(res => res.json())
       .then(data => setScenes(data))
       .catch(err => console.error("Erreur chargement scènes:", err));
   }, []);
-
-  // Charger la scène quand currentScene change
-  useEffect(() => {
-    if (window.viewer && currentScene && scenes && scenes[currentScene]) {
-      window.viewer.loadScene(currentScene);
-    }
-  }, [currentScene, scenes]);
 
   // Initialisation Pannellum
   useEffect(() => {
@@ -27,19 +20,27 @@ export default function VisiteVirtuelle({ currentScene }) {
       const container = document.getElementById("panorama");
       if (!container) return;
 
+      // Vérifier que toutes les scènes ont un panorama valide
+      const validScenes = {};
+      for (const key in scenes) {
+        if (scenes[key].panorama) validScenes[key] = scenes[key];
+        else console.warn(`Scene "${key}" n'a pas de panorama défini`);
+      }
+
       if (!window.viewer && window.pannellum) {
         window.viewer = window.pannellum.viewer("panorama", {
           default: {
-            firstScene: Object.keys(scenes)[0],
+            firstScene: Object.keys(validScenes)[0] || "",
             author: "Votre Nom",
             sceneFadeDuration: 1000,
             autoLoad: true,
             showControls: false,
           },
-          scenes: scenes,
+          scenes: validScenes,
         });
       }
 
+      // Charger la scène demandée
       if (window.viewer && currentScene && window.viewer.getScene() !== currentScene) {
         window.viewer.loadScene(currentScene);
       }
@@ -52,17 +53,28 @@ export default function VisiteVirtuelle({ currentScene }) {
       script.crossOrigin = "anonymous";
       script.onload = initViewer;
       document.body.appendChild(script);
-
       return () => document.body.removeChild(script);
     } else {
       initViewer();
     }
   }, [scenes, currentScene]);
 
+  // Changer de scène si currentScene change après l'initialisation
+  useEffect(() => {
+    if (window.viewer && currentScene && window.viewer.getScene() !== currentScene) {
+      window.viewer.loadScene(currentScene);
+    }
+  }, [currentScene]);
+
   return (
     <div
       id="panorama"
-      style={{ width: "100%", height: "90vh", borderRadius: "8px", overflow: "hidden" }}
+      style={{
+        width: "100%",
+        height: "90vh",
+        borderRadius: "8px",
+        overflow: "hidden",
+      }}
     />
   );
 }
