@@ -1,16 +1,23 @@
-// backend/models/Image.js
+//backend\models\Image.js
 import mongoose from "mongoose";
 
 const imageSchema = new mongoose.Schema({
-  id_image: { type: String, required: true },
   title: String,
-  type: { type: String, default: "equirectangular" },
   chemin_image: String,
-  hfov: { type: Number, default: 100 },
-  pitch: { type: Number, default: 0 },
-  yaw: { type: Number, default: 0 },
-  hotSpots: { type: Array, default: [] },
-  annotation: { type: String, default: "" },
-}, { collection: "image" });
+  id_image: String,
+  type: String,
+  annotation: {
+    related_scenes: Object,
+    objects: Array,
+    information: String,
+  },
+  hfov: Number,
+  pitch: Number,
+  yaw: Number,
+  hotSpots: Array
+});
 
-export const Image = mongoose.model("Image", imageSchema);
+// ⚠️ nom exact de la collection
+const Image = mongoose.model("Image", imageSchema, "image");
+
+export default Image;

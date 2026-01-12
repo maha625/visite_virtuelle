@@ -1,0 +1,126 @@
+/* Variables de couleur pour la cohérence */
+:root {
+    --primary-color: #007bff; /* Bleu professionnel */
+    --secondary-color: #28a745; /* Vert pour le succès/validation */
+    --danger-color: #dc3545; /* Rouge pour la suppression */
+    --background-light: #f8f9fa; /* Fond très clair */
+    --card-background: #ffffff;
+    --text-dark: #343a40;
+    --border-color: #ced4da;
+}
+
+/* --- Conteneur Principal de la Page --- */
+.profile-page-container {
+    max-width: 550px;
+    margin: 50px auto; /* Marge supérieure plus grande pour l'espace */
+    padding: 30px;
+    
+    /* Style de la "carte" */
+    background-color: var(--card-background);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Ombre douce et élégante */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.profile-page-container h2 {
+    text-align: center;
+    color: var(--primary-color);
+    margin-bottom: 25px;
+    padding-bottom: 10px;
+    border-bottom: 3px solid var(--primary-color); /* Ligne soulignant le titre */
+    font-size: 2em;
+    font-weight: 600;
+}
+
+/* --- Information Utilisateur --- */
+.profile-user-info {
+    text-align: center;
+    color: var(--text-dark);
+    font-size: 1.1em;
+    margin-bottom: 30px;
+}
+
+.profile-page-container h3 {
+    text-align: center;
+    color: var(--text-dark);
+    margin-top: 35px;
+    margin-bottom: 20px;
+    font-size: 1.4em;
+    font-weight: 500;
+}
+
+/* --- Formulaire de Mot de Passe --- */
+.profile-password-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Espace entre les éléments du formulaire */
+    padding: 20px;
+    background-color: var(--background-light); /* Fond clair pour démarquer */
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.profile-password-form input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    transition: border-color 0.3s, box-shadow 0.3s;
+    font-size: 1em;
+}
+
+.profile-password-form input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    outline: none;
+}
+
+/* --- Bouton de Soumission du Mot de Passe --- */
+.profile-password-form button[type="submit"] {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 6px;
+    background-color: var(--primary-color);
+    color: white;
+    cursor: pointer;
+    font-size: 1.05em;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+}
+
+.profile-password-form button[type="submit"]:hover {
+    background-color: #0056b3; /* Bleu plus foncé au survol */
+}
+
+/* --- Bouton de Suppression de Compte --- */
+.profile-delete-btn {
+    display: block;
+    width: 60%;
+    margin: 30px auto 10px auto; /* Espacement important */
+    padding: 10px 15px;
+    border: 2px solid var(--danger-color); /* Bordure rouge pour l'emphase */
+    border-radius: 6px;
+    background-color: transparent; /* Bouton fantôme (ghost button) */
+    color: var(--danger-color);
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 600;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.profile-delete-btn:hover {
+    background-color: var(--danger-color);
+    color: var(--card-background); /* Texte blanc au survol */
+}
+
+/* --- Message de Statut --- */
+.profile-message {
+    text-align: center;
+    margin-top: 20px;
+    padding: 10px 15px;
+    border-radius: 4px;
+    font-size: 1em;
+    background-color: #fff3cd; /* Jaune clair (pour l'avertissement/statut) */
+    color: #856404;
+    border: 1px solid #ffeeba;
+}

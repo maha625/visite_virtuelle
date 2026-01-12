@@ -1,26 +1,42 @@
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom"; // <-- ajouter Link
+import { useNavigate, Link } from "react-router-dom";
 import "./Login.css";
 import profileIcon from "./autre_image/profil.png";
 
 export default function Login() {
-  const [email, setEmail] = useState("test@gmail.com");
-  const [password, setPassword] = useState("test");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const PROV_EMAIL = "test@gmail.com";
-  const PROV_PASSWORD = "test";
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (email === PROV_EMAIL && password === PROV_PASSWORD) {
+    try {
+      const response = await fetch("http://localhost:5000/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || "Erreur lors de la connexion.");
+        return;
+      }
+
+      // Sauvegarder le token dans localStorage
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      // Redirection vers dashboard
       navigate("/dashboard");
-    } else {
-      setError("Identifiants incorrects. Utilisez test@gmail.com / test");
+    } catch (err) {
+      console.error(err);
+      setError("Impossible de se connecter. Serveur indisponible.");
     }
   };
 

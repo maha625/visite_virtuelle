@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Signup.css";
-import profileIcon from "./autre_image/profil.png"; // même avatar que pour Login
+import profileIcon from "./autre_image/profil.png";
 
 export default function Signup() {
   const [fullName, setFullName] = useState("");
@@ -12,7 +12,7 @@ export default function Signup() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -20,15 +20,34 @@ export default function Signup() {
       setError("Veuillez remplir tous les champs.");
       return;
     }
+
     if (password !== confirm) {
       setError("Les mots de passe ne correspondent pas.");
       return;
     }
 
-    // Ici tu peux appeler ton API pour créer le compte.
-    // Pour l'instant on simule une inscription réussie :
-    // → rediriger vers dashboard (ou vers '/login' si tu préfères)
-    navigate("/dashboard");
+    try {
+      const response = await fetch("http://localhost:5000/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullName, email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || "Erreur lors de l'inscription.");
+        return;
+      }
+
+      // Inscription réussie → sauvegarde du token et redirection
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      navigate("/dashboard");
+    } catch (err) {
+      console.error(err);
+      setError("Impossible de s'inscrire. Serveur indisponible.");
+    }
   };
 
   return (
@@ -72,13 +91,11 @@ export default function Signup() {
               role="button"
             >
               {showPassword ? (
-                // oeil ouvert (SVG noir/blanc)
                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                   <circle cx="12" cy="12" r="3"></circle>
                 </svg>
               ) : (
-                // oeil barré (SVG noir/blanc)
                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M17.94 17.94A10.12 10.12 0 0 1 12 20c-7 0-11-8-11-8a19.4 19.4 0 0 1 5.06-6.36"></path>
                   <path d="M1 1l22 22"></path>

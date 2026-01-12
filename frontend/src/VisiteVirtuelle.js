@@ -31,7 +31,7 @@ export default function VisiteVirtuelle({ currentScene }) {
         window.viewer = window.pannellum.viewer("panorama", {
           default: {
             firstScene: Object.keys(validScenes)[0] || "",
-            author: "Votre Nom",
+            author: "Maha El Allam",
             sceneFadeDuration: 1000,
             autoLoad: true,
             showControls: false,

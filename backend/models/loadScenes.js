@@ -1,12 +1,12 @@
-import { Image } from "./Image.js";
+//backend\models\loadScenes.js
+import Image from "./Image.js";
 
 export async function loadScenesFromDB() {
   try {
-    const allScenes = await Image.find({}).lean(); // ça va chercher la collection "image"
-    const scenes = {};
-
-    allScenes.forEach(sc => {
-      scenes[sc.id_image] = {
+    const allScenes = await Image.find({}).lean();
+    console.log("🔹 Documents trouvés :", allScenes.length);
+    return allScenes.reduce((acc, sc) => {
+      acc[sc.id_image] = {
         title: sc.title,
         type: sc.type,
         panorama: sc.chemin_image,
@@ -16,10 +16,8 @@ export async function loadScenesFromDB() {
         hotSpots: sc.hotSpots,
         annotation: sc.annotation,
       };
-    });
-
-    console.log("📌 Scenes loaded from MongoDB:", Object.keys(scenes).length);
-    return scenes;
+      return acc;
+    }, {});
   } catch (err) {
     console.error("❌ Error loading scenes:", err);
     return {};

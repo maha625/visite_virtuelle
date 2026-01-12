@@ -1,122 +1,198 @@
-// backend-nlu-llm.js
 import express from "express";
-import mongoose from "mongoose";
-import cors from "cors";
-import dotenv from "dotenv";
 import axios from "axios";
-dotenv.config();
+import * as fuzz from "fuzzball";
+import { manager, SCENES, initNLU, normalize } from "../nluManager.js";
+import Image from "../models/Image.js";
+import { SYNONYMS } from "../models/synonyms.js";
 
-import { Annotation } from "./models/Annotation.js";
+const router = express.Router();
 
-const app = express();
-app.use(cors());
-app.use(express.json());
+const HUGGING_FACE_API_KEY = process.env.HUGGING_FACE_API_KEY;
+const LLM_MODEL = "openai/gpt-oss-20b:groq";
+const HUGGING_FACE_API_URL = "https://router.huggingface.co/v1/chat/completions";
 
-const PORT = process.env.PORT || 5000;
-const HF_API_KEY = process.env.HUGGING_FACE_API_KEY;
+/* ============================================================
+ 🔹 1) Fonction : Appeler Hugging Face en utilisant l’annotation
+=============================================================== */
+async function queryLLM(userMessage, currentSceneTitle, annotation) {
+  if (!HUGGING_FACE_API_KEY) return "Erreur : Clé Hugging Face manquante.";
 
-// --- Connexion MongoDB ---
-mongoose
-  .connect("mongodb://localhost:27017/maha")
-  .then(() => console.log("✅ MongoDB connecté"))
-  .catch((err) => console.error("❌ Erreur MongoDB :", err));
-
-// --- Fonction NLU Hugging Face ---
-async function queryNLU(sentence) {
-  const model = "Rasa/rasa-nlu-bert-small-fr"; // modèle français NLU
-  try {
-    const response = await axios.post(
-      `https://api-inference.huggingface.co/models/${model}`,
-      { inputs: sentence },
-      {
-        headers: { Authorization: `Bearer ${HF_API_KEY}` }
-      }
-    );
-    return response.data; // { intent: ..., entities: [...] }
-  } catch (err) {
-    console.error("Erreur NLU HF :", err.response?.data || err.message);
-    return null;
-  }
-}
-
-// --- Fonction LLM Hugging Face ---
-async function queryLLM(question, annotations = []) {
-  const model = "openai/gpt-oss-20b:groq"; // ou un autre modèle LLM
-  const context = annotations.join("\n\n");
   const systemPrompt = `
-Tu es un guide virtuel à l'ENSAM Meknès.
-Réponds uniquement à partir des informations suivantes, sans inventer ni compléter :
+Tu es un guide virtuel dans une visite virtuelle interactive dans l'ENSAM Meknes Maroc.
+Tu dois aider l’utilisateur en utilisant les données suivantes :
 
-${context}
+=== DONNÉES DE LA SCÈNE "${currentSceneTitle}" ===
+Information : ${annotation?.information || "Aucune information"}
+Objets :
+${annotation?.objects?.length ? annotation.objects.map(o => `- ${o.label} : ${o.description}`).join("\n") : "Aucun objet"}
+Directions :
+${annotation?.related_scenes ? Object.entries(annotation.related_scenes).map(([dir, title]) => `- ${dir} → ${title}`).join("\n") : "Aucune direction"}
+===================================================
 
-Question :
+RÈGLES IMPORTANTES :
+1. Utilise **en priorité** les données ci-dessus.
+2. Si ces données ne suffisent pas, complète avec tes connaissances.
+3. Répond toujours avec la meme langue de la questions et de façon courte.
 `;
 
   try {
     const response = await axios.post(
-      "https://router.huggingface.co/v1/chat/completions",
+      HUGGING_FACE_API_URL,
       {
-        model: model,
+        model: LLM_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: question }
-        ]
+          { role: "user", content: userMessage }
+        ],
       },
       {
         headers: {
-          Authorization: `Bearer ${HF_API_KEY}`,
-          "Content-Type": "application/json"
-        }
+          Authorization: `Bearer ${HUGGING_FACE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
       }
     );
-    return response.data.choices[0]?.message?.content || "Je n'ai pas de réponse.";
+
+    return response.data.choices?.[0]?.message?.content || "Pas de réponse du modèle.";
   } catch (err) {
     console.error("Erreur LLM HF :", err.response?.data || err.message);
     return "Erreur lors de la génération de la réponse.";
   }
 }
 
-// --- Traitement du message ---
-async function processChat(message, sceneId) {
-  // --- NLU pour détecter intention et entités ---
-  const nluResult = await queryNLU(message);
+/* ====================================================
+ 🔹 2) Fonction principale de traitement du message
+===================================================== */
+async function processChatRequest(message, currentSceneId) {
+  const currentSceneTitle = SCENES[currentSceneId]?.title || "Lieu inconnu";
 
-  // --- Récupération annotations locales et globales ---
-  const localAnnotation = sceneId
-    ? await Annotation.findOne({ scene_id: sceneId }) // <-- correction ici
+  const nluResult = await manager.process("fr", message);
+  const intent = nluResult.intent;
+  const confidence = nluResult.score;
+
+  /* ----------------------------------------------- */
+  /* 🔹 Détection d’un lieu dans le message          */
+  /* ----------------------------------------------- */
+
+  let targetTitle = null;
+  const targetEntity = nluResult.entities.find(e => e.entity === "lieu");
+
+  if (targetEntity?.option) {
+    targetTitle = SYNONYMS[targetEntity.option.toLowerCase()] || targetEntity.option;
+  } else {
+    const normalizedMessage = normalize(message);
+
+    const synKey = Object.keys(SYNONYMS).find(k =>
+      normalizedMessage.includes(normalize(k))
+    );
+
+    if (synKey) {
+      targetTitle = SYNONYMS[synKey];
+    } else {
+      const allTitles = Object.values(SCENES).map(s => normalize(s.title));
+      const result = fuzz.extract(normalizedMessage, allTitles, {
+        scorer: fuzz.ratio,
+        returnObjects: true
+      });
+
+      if (result.length > 0 && result[0].score > 60) {
+        targetTitle =
+          Object.values(SCENES).find(s => normalize(s.title) === result[0].choice)?.title;
+      }
+    }
+  }
+
+  const targetSceneId = targetTitle
+    ? Object.keys(SCENES).find(id => SCENES[id].title === targetTitle)
     : null;
 
-  const globalAnnotations = await Annotation.find({ scene_id: "global" });
-  const allAnnotations = [localAnnotation?.annotation, ...globalAnnotations.map(a => a.annotation)].filter(Boolean);
+  /* ----------------------------------------------- */
+  /* 🔹 Navigation entre scènes                      */
+  /* ----------------------------------------------- */
+  if (intent === "navigation.goto") {
+    if (!targetSceneId)
+      return { reply: `Lieu inconnu : ${targetTitle || "demandé"}` };
 
-  if (allAnnotations.length === 0) {
-    console.log(`⚠️ Aucune annotation trouvée pour sceneId="${sceneId}"`);
+    if (targetSceneId === currentSceneId)
+      return { reply: `✨ Vous êtes déjà dans : **${SCENES[targetSceneId].title}**` };
+
+    return {
+      reply: null,
+      command: { type: "loadScene", sceneId: targetSceneId }
+    };
   }
 
-  // --- Si NLU est compris ---
-  if (nluResult && nluResult.intent) {
-    return await queryLLM(message, allAnnotations);
+  /* ----------------------------------------------- */
+  /* 🔹 Informations sur une scène                   */
+  /* ----------------------------------------------- */
+  if (intent.startsWith("info.")) {
+    const infoSceneId = ["info.describe_current", "info.whereami"].includes(intent)
+      ? currentSceneId
+      : targetSceneId;
+
+    const scene = await Image.findOne({ id_image: infoSceneId });
+
+    if (!scene?.annotation)
+      return { reply: "Aucune annotation trouvée." };
+
+    const { related_scenes, objects, information } = scene.annotation;
+
+    let result = "";
+
+    if (information) result += information + "\n\n";
+
+    if (objects?.length) {
+      result += "📌 **Objets importants ici :**\n";
+      objects.forEach(obj => {
+        result += `- **${obj.label}** : ${obj.description}\n`;
+      });
+    }
+
+    if (related_scenes) {
+      result += "\n➡️ **Directions disponibles :**\n";
+      for (const dir in related_scenes) {
+        result += `- **${dir}** : ${related_scenes[dir]}\n`;
+      }
+    }
+
+    return { reply: result.trim() };
   }
 
-  // --- Sinon fallback LLM direct ---
-  return await queryLLM(message, allAnnotations);
+  /* ----------------------------------------------- */
+  /* 🔹 Fallback : LLM répond en se basant sur l’annotation */
+  /* ----------------------------------------------- */
+  if (confidence < 0.5 || intent === "None") {
+    const scene = await Image.findOne({ id_image: currentSceneId });
+
+    const llmReply = await queryLLM(
+      message,
+      currentSceneTitle,
+      scene?.annotation || {}
+    );
+
+    return { reply: llmReply };
+  }
+
+  return { reply: "Je peux vous aider à naviguer ou décrire des lieux !" };
 }
 
-// --- API endpoint ---
-app.post("/chat", async (req, res) => {
-  const { message, sceneId } = req.body;
-  if (!message) return res.status(400).json({ reply: "Message requis." });
+/* ====================================================
+ 🔹 3) Route POST /chat
+===================================================== */
+router.post("/", async (req, res) => {
+  const { message, currentSceneId } = req.body;
+
+  if (!message || !currentSceneId)
+    return res.status(400).json({ reply: "Message et currentSceneId requis." });
 
   try {
-    const reply = await processChat(message, sceneId);
-    res.json({ reply });
+    const response = await processChatRequest(message, currentSceneId);
+    res.json(response);
   } catch (err) {
-    console.error(err);
+    console.error("Erreur Chatbot :", err);
     res.status(500).json({ reply: "Erreur interne du serveur." });
   }
 });
 
-// --- Lancement serveur ---
-app.listen(PORT, () => {
-  console.log(`🚀 Serveur prêt sur http://localhost:${PORT}`);
-});
+initNLU();
+export default router;
