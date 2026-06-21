@@ -23,7 +23,7 @@ Réponses Contextuelles : Grâce à l'architecture RAG (Retrieval-Augmented Gene
 L'interaction utilisateur (clic ou message) est analysée par le serveur. Ce dernier extrait les informations pertinentes de MongoDB et les transmet à l'IA pour générer une réponse fluide ou déclencher une commande de navigation dans l'interface React.
 Installation et Lancement
 Cloner le dépôt :
-git clone https://github.com/votre-repo/ensam-visit.git
+git clone https://github.com/maha625/visite_virtuelle.git
 
 Installer les dépendances :
 npm install
